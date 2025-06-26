@@ -25,16 +25,27 @@ export default function LoginPage() {
     // Simulate login process
     setTimeout(() => {
       setIsLoading(false)
+      const role = "customer" // Default role - in real app, this would come from API
       localStorage.setItem("isAuthenticated", "true")
-      localStorage.setItem("userRole", "customer") // Default role
-      router.push("/dashboard")
+      localStorage.setItem("userRole", role)
+
+      // Set cookies for middleware
+      document.cookie = `isAuthenticated=true; path=/`
+      document.cookie = `userRole=${role}; path=/`
+
+      router.push(`/dashboard/${role}`)
     }, 2000)
   }
 
   const handleDemoLogin = (role: "customer" | "vendor" | "admin") => {
     localStorage.setItem("isAuthenticated", "true")
     localStorage.setItem("userRole", role)
-    router.push("/dashboard")
+
+    // Set cookies for middleware
+    document.cookie = `isAuthenticated=true; path=/`
+    document.cookie = `userRole=${role}; path=/`
+
+    router.push(`/dashboard/${role}`)
   }
 
   const handleSocialLogin = (provider: string) => {

@@ -18,6 +18,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Bell, ChevronDown, Heart, LogOut, Menu, Search, Settings, User } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { logout } from "@/lib/auth"
 
 interface MenuItem {
   label: string
@@ -37,9 +38,8 @@ export function DashboardLayout({ children, menuItems, userRole }: DashboardLayo
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   const handleLogout = () => {
-    localStorage.removeItem("userRole")
-    localStorage.removeItem("isAuthenticated")
-    router.push("/auth/login")
+    logout()
+    router.push("/")
   }
 
   const handleRoleSwitch = (role: "customer" | "vendor" | "admin") => {

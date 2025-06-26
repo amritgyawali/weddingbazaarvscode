@@ -1,0 +1,108 @@
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/wedding_planner_dev?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: wedding_dev
+    password: wedding_dev_password
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+  
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+        generate_statistics: true
+  
+  redis:
+    host: localhost
+    port: 6379
+    database: 1
+  
+  elasticsearch:
+    uris: http://localhost:9200
+  
+  mail:
+    host: smtp.mailtrap.io
+    port: 2525
+    username: your-mailtrap-username
+    password: your-mailtrap-password
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+server:
+  port: 8080
+
+logging:
+  level:
+    com.weddingplanner: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.springframework.web: DEBUG
+  pattern:
+    console: "%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%5p) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n%wEx"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+
+app:
+  jwt:
+    secret: devSecretKeyForDevelopmentOnly
+    expiration: 86400000 # 24 hours
+    refresh-expiration: 604800000 # 7 days
+  
+  cors:
+    allowed-origins: http://localhost:3000,http://localhost:3001,http://localhost:3002
+  
+  aws:
+    region: us-east-1
+    access-key: dev-access-key
+    secret-key: dev-secret-key
+    s3:
+      bucket-name: wedding-planner-dev-files
+      base-url: https://wedding-planner-dev-files.s3.amazonaws.com
+  
+  stripe:
+    public-key: pk_test_dev_key
+    secret-key: sk_test_dev_key
+    webhook-secret: whsec_dev_webhook_secret
+  
+  email:
+    from: dev@weddingplanner.com
+  
+  file:
+    upload:
+      path: uploads/dev/
+  
+  rate-limit:
+    enabled: false
+
+business:
+  wedding:
+    planning:
+      max-guests: 100
+      max-vendors: 10
+      max-timeline-tasks: 50
+  
+  vendor:
+    verification:
+      required-documents: 1
+      approval-timeout-days: 1
+  
+  notification:
+    email:
+      batch-size: 10

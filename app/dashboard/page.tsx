@@ -1,22 +1,14 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { CustomerDashboard } from "@/components/dashboard/customer-dashboard"
-import { VendorDashboard } from "@/components/dashboard/vendor-dashboard"
-import { AdminDashboard } from "@/components/dashboard/admin-dashboard"
-import { LoadingSkeleton } from "@/components/ui/loading-skeleton"
-
-type UserRole = "customer" | "vendor" | "admin" | null
 
 export default function DashboardPage() {
   const router = useRouter()
-  const [userRole, setUserRole] = useState<UserRole>(null)
-  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // Check for user role from localStorage or session
-    const role = localStorage.getItem("userRole") as UserRole
+    // Get user role from localStorage or your auth system
+    const userRole = localStorage.getItem("userRole") || "customer"
     const isAuthenticated = localStorage.getItem("isAuthenticated")
 
     if (!isAuthenticated) {
@@ -24,28 +16,29 @@ export default function DashboardPage() {
       return
     }
 
-    setUserRole(role)
-    setIsLoading(false)
+    // Redirect to appropriate dashboard based on role
+    switch (userRole.toLowerCase()) {
+      case "customer":
+        router.replace("/dashboard/customer")
+        break
+      case "vendor":
+        router.replace("/dashboard/vendor")
+        break
+      case "admin":
+        router.replace("/dashboard/admin")
+        break
+      default:
+        router.replace("/dashboard/customer")
+    }
   }, [router])
 
-  if (isLoading) {
-    return <LoadingSkeleton />
-  }
-
-  if (!userRole) {
-    router.push("/auth/login")
-    return null
-  }
-
-  switch (userRole) {
-    case "customer":
-      return <CustomerDashboard />
-    case "vendor":
-      return <VendorDashboard />
-    case "admin":
-      return <AdminDashboard />
-    default:
-      router.push("/auth/login")
-      return null
-  }
+  // Show loading state while redirecting
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-600 mx-auto mb-4"></div>
+        <p className="text-gray-600">Redirecting to your dashboard...</p>
+      </div>
+    </div>
+  )
 }

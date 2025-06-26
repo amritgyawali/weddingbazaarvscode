@@ -1,0 +1,380 @@
+spring:
+  application:
+    name: wedding-planner-backend
+
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:wedding_planner}?useSSL=true&serverTimezone=UTC&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
+    username: ${DB_USERNAME:wedding_user}
+    password: ${DB_PASSWORD:wedding_password}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:20}
+      minimum-idle: ${DB_POOL_MIN_IDLE:5}
+      idle-timeout: 300000
+      connection-timeout: 20000
+      leak-detection-threshold: 60000
+      pool-name: WeddingPlannerHikariCP
+      auto-commit: false
+      connection-test-query: SELECT 1
+      validation-timeout: 3000
+  
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:validate}
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+        implicit-strategy: org.hibernate.boot.model.naming.ImplicitNamingStrategyLegacyJpaImpl
+    show-sql: ${JPA_SHOW_SQL:false}
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 25
+          fetch_size: 50
+        order_inserts: true
+        order_updates: true
+        generate_statistics: ${HIBERNATE_STATS:false}
+        cache:
+          use_second_level_cache: true
+          use_query_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+        connection:
+          provider_disables_autocommit: true
+        query:
+          in_clause_parameter_padding: true
+          fail_on_pagination_over_collection_fetch: true
+          plan_cache_max_size: 4096
+    open-in-view: false
+    defer-datasource-initialization: true
+  
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+    clean-disabled: true
+  
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+    database: ${REDIS_DATABASE:0}
+    timeout: ${REDIS_TIMEOUT:2000ms}
+    connect-timeout: ${REDIS_CONNECT_TIMEOUT:2000ms}
+    lettuce:
+      pool:
+        max-active: ${REDIS_POOL_MAX_ACTIVE:8}
+        max-idle: ${REDIS_POOL_MAX_IDLE:8}
+        min-idle: ${REDIS_POOL_MIN_IDLE:2}
+        max-wait: ${REDIS_POOL_MAX_WAIT:2000ms}
+      shutdown-timeout: 100ms
+    ssl: ${REDIS_SSL:false}
+
+  cache:
+    type: redis
+    redis:
+      time-to-live: ${CACHE_TTL:600000}
+      cache-null-values: false
+      use-key-prefix: true
+      key-prefix: "wedding-planner:"
+    cache-names:
+      - users
+      - wedding-plans
+      - vendors
+      - settings
+  
+  elasticsearch:
+    uris: ${ELASTICSEARCH_URIS:http://localhost:9200}
+    username: ${ELASTICSEARCH_USERNAME:}
+    password: ${ELASTICSEARCH_PASSWORD:}
+    connection-timeout: 5s
+    socket-timeout: 30s
+  
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          ssl:
+            trust: ${MAIL_HOST:smtp.gmail.com}
+  
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 50MB
+  
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:}
+            client-secret: ${GOOGLE_CLIENT_SECRET:}
+            scope: openid,profile,email
+          facebook:
+            client-id: ${FACEBOOK_CLIENT_ID:}
+            client-secret: ${FACEBOOK_CLIENT_SECRET:}
+            scope: email,public_profile
+
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /api/v1
+    session:
+      timeout: ${SESSION_TIMEOUT:30m}
+      cookie:
+        http-only: true
+        secure: ${COOKIE_SECURE:false}
+        same-site: strict
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json,application/xml
+    min-response-size: 1024
+  http2:
+    enabled: true
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+    include-exception: false
+  tomcat:
+    max-threads: ${TOMCAT_MAX_THREADS:200}
+    min-spare-threads: ${TOMCAT_MIN_THREADS:10}
+    max-connections: ${TOMCAT_MAX_CONNECTIONS:8192}
+    accept-count: ${TOMCAT_ACCEPT_COUNT:100}
+    connection-timeout: ${TOMCAT_CONNECTION_TIMEOUT:20000}
+    keep-alive-timeout: ${TOMCAT_KEEP_ALIVE_TIMEOUT:20000}
+    max-keep-alive-requests: ${TOMCAT_MAX_KEEP_ALIVE:100}
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: ${ACTUATOR_ENDPOINTS:health,info,metrics,prometheus,caches,conditions,configprops,env,flyway,loggers,scheduledtasks,threaddump,heapdump}
+      base-path: /actuator
+      cors:
+        allowed-origins: ${ACTUATOR_CORS_ORIGINS:http://localhost:3000}
+        allowed-methods: GET,POST
+  endpoint:
+    health:
+      show-details: ${ACTUATOR_HEALTH_DETAILS:when-authorized}
+      show-components: always
+      cache:
+        time-to-live: 10s
+    metrics:
+      enabled: true
+    prometheus:
+      enabled: true
+    info:
+      enabled: true
+    caches:
+      enabled: true
+    env:
+      show-values: ${ACTUATOR_ENV_SHOW_VALUES:when-authorized}
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+        step: 1m
+        descriptions: true
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      percentiles:
+        http.server.requests: 0.5, 0.95, 0.99
+      slo:
+        http.server.requests: 10ms, 50ms, 100ms, 200ms, 500ms
+    tags:
+      application: ${spring.application.name}
+      environment: ${spring.profiles.active}
+  health:
+    redis:
+      enabled: true
+    elasticsearch:
+      enabled: true
+    db:
+      enabled: true
+    diskspace:
+      enabled: true
+      threshold: 10GB
+    mail:
+      enabled: true
+  info:
+    build:
+      enabled: true
+    env:
+      enabled: true
+    git:
+      enabled: true
+      mode: full
+    java:
+      enabled: true
+    os:
+      enabled: true
+
+logging:
+  level:
+    root: ${ROOT_LOG_LEVEL:INFO}
+    com.weddingplanner: ${LOG_LEVEL:INFO}
+    org.springframework.security: ${SECURITY_LOG_LEVEL:WARN}
+    org.springframework.web: ${WEB_LOG_LEVEL:WARN}
+    org.springframework.cache: ${CACHE_LOG_LEVEL:WARN}
+    org.springframework.transaction: ${TRANSACTION_LOG_LEVEL:WARN}
+    org.hibernate.SQL: ${SQL_LOG_LEVEL:WARN}
+    org.hibernate.type.descriptor.sql.BasicBinder: ${SQL_PARAM_LOG_LEVEL:WARN}
+    org.hibernate.stat: ${HIBERNATE_STATS_LOG_LEVEL:WARN}
+    org.flywaydb: ${FLYWAY_LOG_LEVEL:INFO}
+    com.zaxxer.hikari: ${HIKARI_LOG_LEVEL:WARN}
+    redis.clients.jedis: ${REDIS_LOG_LEVEL:WARN}
+    org.elasticsearch: ${ELASTICSEARCH_LOG_LEVEL:WARN}
+    com.stripe: ${STRIPE_LOG_LEVEL:WARN}
+    software.amazon.awssdk: ${AWS_LOG_LEVEL:WARN}
+  pattern:
+    console: "%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%5p) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n%wEx"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+  file:
+    name: ${LOG_FILE:logs/wedding-planner.log}
+    max-size: ${LOG_FILE_MAX_SIZE:10MB}
+    max-history: ${LOG_FILE_MAX_HISTORY:30}
+    total-size-cap: ${LOG_FILE_TOTAL_SIZE:1GB}
+  logback:
+    rollingpolicy:
+      clean-history-on-start: true
+      max-file-size: ${LOG_FILE_MAX_SIZE:10MB}
+      total-size-cap: ${LOG_FILE_TOTAL_SIZE:1GB}
+
+# Application specific configurations
+app:
+  name: ${spring.application.name}
+  version: "1.0.0"
+  description: "Enterprise Wedding Planner Backend API"
+
+  jwt:
+    secret: ${JWT_SECRET:mySecretKey}
+    expiration: ${JWT_EXPIRATION:86400000} # 24 hours
+    refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000} # 7 days
+    issuer: ${JWT_ISSUER:wedding-planner-backend}
+    audience: ${JWT_AUDIENCE:wedding-planner-frontend}
+
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3001,http://localhost:3002}
+    allowed-methods: ${CORS_ALLOWED_METHODS:GET,POST,PUT,DELETE,OPTIONS,PATCH,HEAD}
+    allowed-headers: ${CORS_ALLOWED_HEADERS:*}
+    exposed-headers: ${CORS_EXPOSED_HEADERS:X-Total-Count,X-Total-Pages,Authorization}
+    allow-credentials: ${CORS_ALLOW_CREDENTIALS:true}
+    max-age: ${CORS_MAX_AGE:3600}
+  
+  aws:
+    region: ${AWS_REGION:us-east-1}
+    access-key: ${AWS_ACCESS_KEY:}
+    secret-key: ${AWS_SECRET_KEY:}
+    s3:
+      bucket-name: ${AWS_S3_BUCKET:wedding-planner-files}
+      base-url: ${AWS_S3_BASE_URL:https://wedding-planner-files.s3.amazonaws.com}
+  
+  stripe:
+    public-key: ${STRIPE_PUBLIC_KEY:}
+    secret-key: ${STRIPE_SECRET_KEY:}
+    webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+  
+  email:
+    from: ${EMAIL_FROM:noreply@weddingplanner.com}
+    templates:
+      welcome: welcome-email
+      password-reset: password-reset-email
+      booking-confirmation: booking-confirmation-email
+  
+  file:
+    upload:
+      max-size: 10485760 # 10MB
+      allowed-types: jpg,jpeg,png,gif,pdf,doc,docx
+      path: ${FILE_UPLOAD_PATH:uploads/}
+  
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+    requests-per-minute: ${RATE_LIMIT_RPM:60}
+    burst-capacity: ${RATE_LIMIT_BURST:100}
+
+  security:
+    password:
+      min-length: ${PASSWORD_MIN_LENGTH:8}
+      require-uppercase: ${PASSWORD_REQUIRE_UPPERCASE:true}
+      require-lowercase: ${PASSWORD_REQUIRE_LOWERCASE:true}
+      require-digit: ${PASSWORD_REQUIRE_DIGIT:true}
+      require-special: ${PASSWORD_REQUIRE_SPECIAL:true}
+    session:
+      max-concurrent: ${MAX_CONCURRENT_SESSIONS:3}
+      prevent-login: ${PREVENT_LOGIN_ON_MAX_SESSIONS:false}
+    lockout:
+      max-attempts: ${MAX_LOGIN_ATTEMPTS:5}
+      lockout-duration: ${LOCKOUT_DURATION:15} # minutes
+
+  features:
+    email-verification: ${FEATURE_EMAIL_VERIFICATION:true}
+    oauth2-login: ${FEATURE_OAUTH2_LOGIN:true}
+    file-upload: ${FEATURE_FILE_UPLOAD:true}
+    payment-processing: ${FEATURE_PAYMENT_PROCESSING:true}
+    real-time-notifications: ${FEATURE_REAL_TIME_NOTIFICATIONS:true}
+    analytics: ${FEATURE_ANALYTICS:true}
+
+  async:
+    core-pool-size: ${ASYNC_CORE_POOL_SIZE:5}
+    max-pool-size: ${ASYNC_MAX_POOL_SIZE:20}
+    queue-capacity: ${ASYNC_QUEUE_CAPACITY:100}
+    thread-name-prefix: "wedding-planner-async-"
+
+  scheduling:
+    pool-size: ${SCHEDULING_POOL_SIZE:5}
+    thread-name-prefix: "wedding-planner-scheduler-"
+
+# Swagger/OpenAPI Configuration
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operations-sorter: method
+    tags-sorter: alpha
+  show-actuator: true
+
+# Custom properties for business logic
+business:
+  wedding:
+    planning:
+      max-guests: 1000
+      max-vendors: 50
+      max-timeline-tasks: 100
+      advance-booking-days: 365
+  
+  vendor:
+    verification:
+      required-documents: 3
+      approval-timeout-days: 7
+  
+  payment:
+    processing:
+      timeout-seconds: 30
+      retry-attempts: 3
+  
+  notification:
+    email:
+      batch-size: 100
+      retry-attempts: 3
+    sms:
+      enabled: false
+      provider: twilio
