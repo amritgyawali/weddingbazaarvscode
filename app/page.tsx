@@ -29,10 +29,11 @@ import {
 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 
 export default function EnhancedWeddingBazaarHomePage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
   const [activeCategory, setActiveCategory] = useState(0)
@@ -50,8 +51,19 @@ export default function EnhancedWeddingBazaarHomePage() {
     // Simulate loading
     setTimeout(() => setIsLoading(false), 1500)
 
+    // Initialize search parameters after component mounts
+    if (searchParams) {
+      const query = searchParams.get("query") || ""
+      const city = searchParams.get("city") || ""
+      const date = searchParams.get("date") || ""
+      
+      setSearchQuery(query)
+      setSelectedCity(city)
+      setWeddingDate(date)
+    }
+
     return () => window.removeEventListener("scroll", handleScroll)
-  }, [])
+  }, [searchParams])
 
   const handleSearch = () => {
     const params = new URLSearchParams()
