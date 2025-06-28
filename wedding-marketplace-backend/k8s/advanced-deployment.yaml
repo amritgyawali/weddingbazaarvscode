@@ -1,0 +1,363 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: wedding-marketplace
+  labels:
+    name: wedding-marketplace
+    environment: production
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wedding-marketplace-backend
+  namespace: wedding-marketplace
+  labels:
+    app: wedding-marketplace-backend
+    version: v1.0.0
+    component: backend
+    tier: application
+  annotations:
+    deployment.kubernetes.io/revision: "1"
+    kubernetes.io/change-cause: "Initial deployment with advanced configuration"
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: wedding-marketplace-backend
+  template:
+    metadata:
+      labels:
+        app: wedding-marketplace-backend
+        version: v1.0.0
+        component: backend
+        tier: application
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      serviceAccountName: wedding-marketplace-backend
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+      containers:
+      - name: wedding-marketplace-backend
+        image: wedding-marketplace/backend:1.0.0
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        - name: management
+          containerPort: 9090
+          protocol: TCP
+        - name: grpc
+          containerPort: 9091
+          protocol: TCP
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "kubernetes,prod"
+        - name: JAVA_OPTS
+          value: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: wedding-marketplace-secrets
+              key: database-url
+        - name: DATABASE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: wedding-marketplace-secrets
+              key: database-username
+        - name: DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: wedding-marketplace-secrets
+              key: database-password
+        - name: REDIS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: wedding-marketplace-config
+              key: redis-url
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          valueFrom:
+            configMapKeyRef:
+              name: wedding-marketplace-config
+              key: kafka-bootstrap-servers
+        - name: ELASTICSEARCH_URL
+          valueFrom:
+            configMapKeyRef:
+              name: wedding-marketplace-config
+              key: elasticsearch-url
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: wedding-marketplace-secrets
+              key: jwt-secret
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: management
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: management
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /actuator/health/startup
+            port: management
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+        volumeMounts:
+        - name: config-volume
+          mountPath: /app/config
+          readOnly: true
+        - name: logs-volume
+          mountPath: /app/logs
+        - name: temp-volume
+          mountPath: /tmp
+      volumes:
+      - name: config-volume
+        configMap:
+          name: wedding-marketplace-config
+      - name: logs-volume
+        emptyDir: {}
+      - name: temp-volume
+        emptyDir: {}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - wedding-marketplace-backend
+              topologyKey: kubernetes.io/hostname
+      tolerations:
+      - key: "node.kubernetes.io/not-ready"
+        operator: "Exists"
+        effect: "NoExecute"
+        tolerationSeconds: 300
+      - key: "node.kubernetes.io/unreachable"
+        operator: "Exists"
+        effect: "NoExecute"
+        tolerationSeconds: 300
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wedding-marketplace-backend-service
+  namespace: wedding-marketplace
+  labels:
+    app: wedding-marketplace-backend
+    component: backend
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "tcp"
+spec:
+  type: LoadBalancer
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+    protocol: TCP
+  - name: https
+    port: 443
+    targetPort: 8080
+    protocol: TCP
+  - name: grpc
+    port: 9091
+    targetPort: 9091
+    protocol: TCP
+  selector:
+    app: wedding-marketplace-backend
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wedding-marketplace-backend-internal
+  namespace: wedding-marketplace
+  labels:
+    app: wedding-marketplace-backend
+    component: backend
+    type: internal
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+  - name: management
+    port: 9090
+    targetPort: 9090
+    protocol: TCP
+  - name: grpc
+    port: 9091
+    targetPort: 9091
+    protocol: TCP
+  selector:
+    app: wedding-marketplace-backend
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: wedding-marketplace-backend
+  namespace: wedding-marketplace
+  labels:
+    app: wedding-marketplace-backend
+    component: backend
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: wedding-marketplace
+  name: wedding-marketplace-backend-role
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: wedding-marketplace-backend-rolebinding
+  namespace: wedding-marketplace
+subjects:
+- kind: ServiceAccount
+  name: wedding-marketplace-backend
+  namespace: wedding-marketplace
+roleRef:
+  kind: Role
+  name: wedding-marketplace-backend-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wedding-marketplace-config
+  namespace: wedding-marketplace
+  labels:
+    app: wedding-marketplace-backend
+    component: config
+data:
+  application.yml: |
+    server:
+      port: 8080
+    management:
+      server:
+        port: 9090
+      endpoints:
+        web:
+          exposure:
+            include: health,info,metrics,prometheus
+      endpoint:
+        health:
+          show-details: always
+    spring:
+      application:
+        name: wedding-marketplace-backend
+      profiles:
+        active: kubernetes,prod
+    logging:
+      level:
+        com.weddingmarketplace: INFO
+        org.springframework.security: DEBUG
+      pattern:
+        console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+        file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+      file:
+        name: /app/logs/application.log
+  redis-url: "redis://redis-service:6379"
+  kafka-bootstrap-servers: "kafka-service:9092"
+  elasticsearch-url: "http://elasticsearch-service:9200"
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: wedding-marketplace-backend-hpa
+  namespace: wedding-marketplace
+  labels:
+    app: wedding-marketplace-backend
+    component: autoscaler
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: wedding-marketplace-backend
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+      - type: Pods
+        value: 2
+        periodSeconds: 60
+      selectPolicy: Max
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: wedding-marketplace-backend-pdb
+  namespace: wedding-marketplace
+  labels:
+    app: wedding-marketplace-backend
+    component: disruption-budget
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: wedding-marketplace-backend
